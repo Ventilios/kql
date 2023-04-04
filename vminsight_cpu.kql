@@ -1,0 +1,55 @@
+//
+// CPU time - Total - Raw counter 1 minute
+let vm_name = "vm-perf-test";
+let timestamp_from = datetime(2023-03-30, 00:00:00);
+let timestamp_to = datetime(2023-03-30, 23:59:59);
+
+InsightsMetrics
+| where Origin == "vm.azm.ms"
+    and Computer == vm_name
+    and Namespace == "Processor"
+    and Name == "UtilizationPercentage"
+    and TimeGenerated between ( timestamp_from .. timestamp_to )
+| extend CPU=tostring(todynamic(Tags)["vm.azm.ms/totalCpus"])
+| project TimeGenerated, cpu_percentage=Val
+| render timechart with (title=strcat("CPU Raw 1 minute counter data - ", vm_name), ytitle="Percentage")
+
+//
+// CPU time - Total - 5 minute bin - Raw counter 1 minute
+let vm_name = "vm-perf-test";
+let timestamp_from = datetime(2023-03-30, 00:00:00);
+let timestamp_to = datetime(2023-03-30, 23:59:59);
+
+InsightsMetrics
+| where Origin == "vm.azm.ms"
+    and Computer == vm_name
+    and Namespace == "Processor"
+    and Name == "UtilizationPercentage"
+    and TimeGenerated between ( timestamp_from .. timestamp_to )
+| extend CPU=tostring(todynamic(Tags)["vm.azm.ms/totalCpus"])
+| summarize 
+    cpu_avg = avg(Val),
+    cpu_min = min(Val),
+    cpu_max = max(Val)
+    by Computer, CPU, _ResourceId, Length=bin(TimeGenerated, 5m)
+| project Length, cpu_avg_percentage=cpu_avg, cpu_min, cpu_max
+| render timechart with (xtitle="TimeGenerated5m", ytitle="Percentage")
+
+//
+// CPU time - Total - Percentiles
+let vm_name = "vm-perf-test";
+let timestamp_from = datetime(2023-03-30, 00:00:00);
+let timestamp_to = datetime(2023-03-30, 23:59:59);
+
+InsightsMetrics
+| where Origin == "vm.azm.ms"
+    and Computer == vm_name
+    and Namespace == "Processor"
+    and Name == "UtilizationPercentage"
+    and TimeGenerated between ( timestamp_from .. timestamp_to )
+| extend CPU=tostring(todynamic(Tags)["vm.azm.ms/totalCpus"])
+| summarize 
+    percentiles(Val, 5, 50, 95, 99)
+    by Computer, CPU, _ResourceId, Length=bin(TimeGenerated, 5m)
+| project Length, percentile_Val_5, percentile_Val_50, percentile_Val_95, percentile_Val_99
+| render timechart with (xtitle="TimeGenerated5m", ytitle="Percentage")
