@@ -1,4 +1,82 @@
-// Aggregated view
+//
+// Query 1) IO Read Latency - Timechart -  Raw counter 1 minute
+let vm_name = "vm-perf-test";
+let timestamp_from = datetime(2023-03-30, 00:00:00);
+let timestamp_to = datetime(2023-03-30, 23:59:59);
+
+InsightsMetrics
+| where Origin == "vm.azm.ms"
+    and Computer == vm_name
+    and Namespace == "LogicalDisk"
+    and Name == "ReadLatencyMs"
+    and TimeGenerated between (timestamp_from .. timestamp_to)
+| extend Disk=tostring(todynamic(Tags)["vm.azm.ms/mountId"])
+| project TimeGenerated, Disk, Val
+| render timechart with (title=strcat
+("IO Read Latency - Raw counter 1 minute - ", vm_name), ytitle="Latency ms")
+
+
+//
+// Query 2) IO Read Latency - Timechart - AVG, 5 minute bin
+let vm_name = "vm-perf-test";
+let timestamp_from = datetime(2023-03-30, 00:00:00);
+let timestamp_to = datetime(2023-03-30, 23:59:59);
+
+InsightsMetrics
+| where Origin == "vm.azm.ms"
+    and Computer == vm_name
+    and Namespace == "LogicalDisk"
+    and Name == "ReadLatencyMs"
+    and TimeGenerated between (timestamp_from .. timestamp_to)
+| extend Disk=tostring(todynamic(Tags)["vm.azm.ms/mountId"])
+| summarize 
+    io_read_ms_avg=avg(Val)
+    by Computer, Disk, _ResourceId, TimeGenerated5m=bin(TimeGenerated, 5m)
+| project TimeGenerated5m, Disk, io_read_ms_avg
+| render timechart with (title=strcat
+("IO Read Latency AVG 5 minute bin - ", vm_name), ytitle="Latency ms")
+
+
+//
+// Query 3) IO Write Latency - Timechart -  Raw counter 1 minute
+let vm_name = "vm-perf-test";
+let timestamp_from = datetime(2023-03-30, 00:00:00);
+let timestamp_to = datetime(2023-03-30, 23:59:59);
+
+InsightsMetrics
+| where Origin == "vm.azm.ms"
+    and Computer == vm_name
+    and Namespace == "LogicalDisk"
+    and Name == "WriteLatencyMs"
+    and TimeGenerated between (timestamp_from .. timestamp_to)
+| extend Disk=tostring(todynamic(Tags)["vm.azm.ms/mountId"])
+| project TimeGenerated, Disk, Val
+| render timechart with (title=strcat
+("IO Write Latency - Raw counter 1 minute - ", vm_name), ytitle="Latency ms")
+
+
+//
+// Query 4) IO Write Latency - Timechart - AVG, 5 minute bin
+let vm_name = "vm-perf-test";
+let timestamp_from = datetime(2023-03-30, 00:00:00);
+let timestamp_to = datetime(2023-03-30, 23:59:59);
+
+InsightsMetrics
+| where Origin == "vm.azm.ms"
+    and Computer == vm_name
+    and Namespace == "LogicalDisk"
+    and Name == "WriteLatencyMs"
+    and TimeGenerated between (timestamp_from .. timestamp_to)
+| extend Disk=tostring(todynamic(Tags)["vm.azm.ms/mountId"])
+| summarize 
+    io_read_ms_avg=avg(Val)
+    by Computer, Disk, _ResourceId, TimeGenerated5m=bin(TimeGenerated, 5m)
+| project TimeGenerated5m, Disk, io_read_ms_avg
+| render timechart with (title=strcat
+("IO Write Latency AVG 5 minute bin - ", vm_name), ytitle="Latency ms")
+
+
+// Query 5) Aggregated view
 let vm_name = "vm-perf-test";
 let timestamp_from = datetime(2023-03-30, 00:00:00);
 let timestamp_to = datetime(2023-03-30, 23:59:59);
@@ -11,26 +89,40 @@ InsightsMetrics
     and TimeGenerated between (timestamp_from .. timestamp_to)
 | extend Disk = tostring(todynamic(Tags)["vm.azm.ms/mountId"])
 | summarize io_writes_ps_total = sumif(Val, Name == "WritesPerSecond"),
-            io_writes_bytes_total = sumif(Val, Name == "WriteBytesPerSecond"),
-            io_writes_bytes_avg = avgif(Val, Name == "WriteBytesPerSecond"),
-            io_write_latency_avg = avgif(Val, Name == "WriteLatencyMs"),
-            io_write_latency_max = maxif(Val, Name == "WriteLatencyMs"),
-            io_reads_ps_total = sumif(Val, Name == "ReadsPerSecond"),
-            io_reads_bytes_total = sumif(Val, Name == "ReadBytesPerSecond"),
-            io_reads_bytes_avg = avgif(Val, Name == "ReadBytesPerSecond"),
-            io_read_latency_avg = avgif(Val, Name == "ReadLatencyMs"),
-            io_read_latency_max = maxif(Val, Name == "ReadLatencyMs")
+    io_writes_bytes_total = sumif(Val, Name == "WriteBytesPerSecond"),
+    io_writes_bytes_avg = avgif(Val, Name == "WriteBytesPerSecond"),
+    io_write_latency_avg = avgif(Val, Name == "WriteLatencyMs"),
+    io_write_latency_max = maxif(Val, Name == "WriteLatencyMs"),
+    io_reads_ps_total = sumif(Val, Name == "ReadsPerSecond"),
+    io_reads_bytes_total = sumif(Val, Name == "ReadBytesPerSecond"),
+    io_reads_bytes_avg = avgif(Val, Name == "ReadBytesPerSecond"),
+    io_read_latency_avg = avgif(Val, Name == "ReadLatencyMs"),
+    io_read_latency_max = maxif(Val, Name == "ReadLatencyMs")
     by Computer, Disk, _ResourceId
 | extend io_writes_kbps_total = round(io_writes_bytes_total / 1024, 2),
-         io_writes_kbps_avg = round(io_writes_bytes_avg / 1024, 2),
-         io_write_latency_avg = round(io_write_latency_avg, 2),
-         io_write_latency_max = round(io_write_latency_max, 2),
-         io_reads_kbps_total = round(io_reads_bytes_total / 1024, 2),
-         io_reads_kbps_avg = round(io_reads_bytes_avg / 1024, 2),
-         io_read_latency_avg = round(io_read_latency_avg, 2),
-         io_read_latency_max = round(io_read_latency_max, 2),
-         io_writes_ps = round(io_writes_ps_total, 0),
-         io_reads_ps = round(io_reads_ps_total, 0)
-| project vm_name, timestamp_from, timestamp_to, Disk, io_writes_ps, io_writes_kbps_total, io_writes_kbps_avg, io_write_latency_avg, io_write_latency_max, io_reads_ps, io_reads_kbps_total, io_reads_kbps_avg, io_read_latency_avg, io_read_latency_max
+    io_writes_kbps_avg = round(io_writes_bytes_avg / 1024, 2),
+    io_write_latency_avg = round(io_write_latency_avg, 2),
+    io_write_latency_max = round(io_write_latency_max, 2),
+    io_reads_kbps_total = round(io_reads_bytes_total / 1024, 2),
+    io_reads_kbps_avg = round(io_reads_bytes_avg / 1024, 2),
+    io_read_latency_avg = round(io_read_latency_avg, 2),
+    io_read_latency_max = round(io_read_latency_max, 2),
+    io_writes_ps = round(io_writes_ps_total, 0),
+    io_reads_ps = round(io_reads_ps_total, 0)
+| project
+    vm_name,
+    timestamp_from,
+    timestamp_to,
+    Disk,
+    io_writes_ps,
+    io_writes_kbps_total,
+    io_writes_kbps_avg,
+    io_write_latency_avg,
+    io_write_latency_max,
+    io_reads_ps,
+    io_reads_kbps_total,
+    io_reads_kbps_avg,
+    io_read_latency_avg,
+    io_read_latency_max
 | order by Disk asc
 | render table  
